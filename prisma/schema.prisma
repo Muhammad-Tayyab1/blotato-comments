@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PublicationStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Workspace {
+  id       String          @id
+  accounts SocialAccount[]
+  posts    Post[]
+}
+
+model SocialAccount {
+  id                String        @id
+  workspaceId       String
+  workspace         Workspace     @relation(fields: [workspaceId], references: [id])
+  platform          String
+  externalAccountId String
+  publications      Publication[]
+
+  @@unique([workspaceId, platform, externalAccountId])
+}
+
+model Post {
+  id           String        @id
+  workspaceId  String
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id])
+  text         String
+  publications Publication[]
+
+  @@index([workspaceId])
+}
+
+model Publication {
+  id              String            @id
+  postId          String
+  post            Post              @relation(fields: [postId], references: [id])
+  socialAccountId String
+  socialAccount   SocialAccount     @relation(fields: [socialAccountId], references: [id])
+  externalPostId  String?
+  status          PublicationStatus @default(DRAFT)
+  comments        CommentSnapshot[]
+
+  @@unique([socialAccountId, externalPostId])
+  @@index([postId])
+}
+
+model CommentSnapshot {
+  id                      String      @id @default(cuid())
+  publicationId           String
+  publication             Publication @relation(fields: [publicationId], references: [id])
+  externalCommentId       String
+  externalParentCommentId String?
+  authorId                String
+  authorName              String
+  text                    String
+  providerTimestamp       DateTime
+  fetchedAt               DateTime
+
+  @@unique([publicationId, externalCommentId])
+  @@index([publicationId, providerTimestamp])
+}
